@@ -1,5 +1,7 @@
 # Recordurbate-Docker [![Docker Image CI](https://github.com/Despernal/Recordurbate-Docker/actions/workflows/docker-image.yml/badge.svg)](https://github.com/Despernal/Recordurbate-Docker/actions/workflows/docker-image.yml)
 
+Based off the good work of https://github.com/oliverjrose99/Recordurbate
+
 ## Pre built Docker image
 
 You can use the following to just pull the image and pass in your own configs and recordings folder
