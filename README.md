@@ -25,7 +25,7 @@ and in `start` you will need to change the following
 
 You can either start it with the start script or do like i do and just use the docker-compose stack to start it
 
-You can run this either way by backing in the configs folder and just not mapping the configs volume out to a real folder on the host.
+You can run this either way by baking in the configs folder and just not mapping the configs volume out to a real folder on the host.
 
 Or do like i do an just map the provided configs folder into the container and add the appropriate volume mounts.
 
