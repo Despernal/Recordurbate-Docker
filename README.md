@@ -6,6 +6,7 @@ You can use the following to just pull the image and pass in your own configs an
 
 `docker pull ghcr.io/despernal/recordurbate-docker`
 
+See Running section for more info on the volumes that need to be mounted.
 
 ## Building
 To build this just run the build script
