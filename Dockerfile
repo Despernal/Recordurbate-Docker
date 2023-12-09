@@ -2,7 +2,7 @@ FROM python:alpine
 
 WORKDIR /app
 
-RUN apk add ffmpeg curl bash && \
+RUN apk add ffmpeg curl bash patch && \
     curl https://codeload.github.com/oliverjrose99/Recordurbate/zip/master --output master.zip && \
     unzip master.zip ; mv Recordurbate-master/recordurbate/* .;rm -r Recordurbate-master && \
     rm master.zip && \
