@@ -4,7 +4,7 @@
 
 You can use the following to just pull the image and pass in your own configs and recordings folder
 
-`docker pull despernal/recordurbate:latest`
+`docker pull ghcr.io/despernal/recordurbate-docker`
 
 
 ## Building
