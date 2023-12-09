@@ -4,7 +4,7 @@ services:
     command:
       - /app/run.sh
     container_name: chat
-    hostname: d8bc5abf72ae
+    hostname: chat
     image: chat:latest
     restart: always
     volumes:
