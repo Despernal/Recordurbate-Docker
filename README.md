@@ -1,4 +1,4 @@
-# Recordurbate-Docker
+# Recordurbate-Docker [![Docker Image CI](https://github.com/Despernal/Recordurbate-Docker/actions/workflows/docker-image.yml/badge.svg)](https://github.com/Despernal/Recordurbate-Docker/actions/workflows/docker-image.yml)
 
 ## Building
 To build this just run the build script
