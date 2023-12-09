@@ -1,4 +1,4 @@
 #!/bin/bash
 docker stop chat
 docker rm chat
-docker run -d --restart always --name chat -v PATH_TO_RECORDINGS:/app/videos/ chat:latest
+docker run -d --restart always --name chat -v PATH_TO_RECORDINGS:/app/videos/ -v PATH_TO_CONFIGS:/app/configs chat:latest
