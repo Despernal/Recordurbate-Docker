@@ -1,0 +1,4 @@
+#!/bin/bash
+docker stop chat
+docker rm chat
+docker run -d --restart always --name chat -v PATH_TO_RECORDINGS:/app/videos/ chat:latest

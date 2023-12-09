@@ -1,0 +1,14 @@
+version: "3"
+services:
+  chat:
+    command:
+      - /app/run.sh
+    container_name: chat
+    hostname: d8bc5abf72ae
+    image: chat:latest
+    restart: always
+    volumes:
+      - PATH_TO_RECORDINGS:/app/videos
+      - PATH_TO_CONFIGS:/app/configs
+    working_dir: /app
+networks: {}
