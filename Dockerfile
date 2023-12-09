@@ -14,6 +14,10 @@ RUN apk add ffmpeg curl bash && \
 
 COPY run.sh /app/
 
+COPY bot.py.patch /app
+
+RUN patch /app/bot.py  < /app/bot.py.patch
+
 RUN chmod +x run.sh
 
 COPY config.json /app/configs/
