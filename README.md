@@ -2,6 +2,15 @@
 
 Based off the good work of https://github.com/oliverjrose99/Recordurbate
 
+Following upstream we are switching to yt-dlp.
+You will need to change your configs.
+
+This part
+
+`    "youtube-dl_cmd": "yt-dlp",`
+
+I have left the old youtube-dl in there for the time being but you will need to transition
+
 ## Pre built Docker image
 
 You can use the following to just pull the image and pass in your own configs and recordings folder

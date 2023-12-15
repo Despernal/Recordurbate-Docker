@@ -9,7 +9,7 @@ RUN apk add ffmpeg curl bash patch && \
     # curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/local/bin/youtube-dl && \
     curl -L https://github.com/ytdl-org/youtube-dl/releases/download/2021.12.17/youtube-dl -o /usr/local/bin/youtube-dl && \
     chmod a+rx /usr/local/bin/youtube-dl && \
-    pip install requests && \
+    pip install requests yt-dlp && \
     apk del curl
 
 COPY run.sh /app/
