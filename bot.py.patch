@@ -44,7 +44,7 @@
  
          except Exception as e:
              self.logger.exception("Exception: call to is_online(..) failed.")
-@@ -127,13 +121,33 @@
+@@ -127,13 +121,39 @@
                      if streamer[1]:
                          continue
  
@@ -63,22 +63,28 @@
 +                        # ffmpeg's HLS demuxer which is broken on CB's CMAF) and
 +                        # keeps a single output file across segment retries, so
 +                        # transient reconnects don't fragment the recording.
-+                        # ffmpeg is still used downstream as the muxer via
++                        # ffmpeg is still used downstream as the muxer pipe via
 +                        # --live-pipe-mux, but it never sees the HLS stream
-+                        # directly.
++                        # directly. The recorder's CLI flags live in a config
++                        # file so they can be tuned by editing a mounted file
++                        # on the host without rebuilding the image.
 +                        out_dir = "videos/{}".format(streamer[0])
 +                        save_name = "{}-{}".format(streamer[0], time.strftime("%Y%m%d-%H%M%S"))
++                        recorder_config = self.config.get("recorder_config", "configs/n_m3u8dl-re.config")
++                        recorder_args = []
++                        try:
++                            with open(recorder_config) as _rf:
++                                for _ln in _rf:
++                                    _ln = _ln.strip()
++                                    if _ln and not _ln.startswith("#"):
++                                        recorder_args.extend(_ln.split())
++                        except Exception as _e:
++                            self.logger.exception("Failed to read recorder config: " + str(_e))
 +                        args = [
 +                            "N_m3u8DL-RE", hls_url,
 +                            "--save-dir", out_dir,
 +                            "--save-name", save_name,
-+                            "--auto-select",
-+                            "--live-real-time-merge",
-+                            "--live-keep-segments=False",
-+                            "--live-pipe-mux",
-+                            "--no-log",
-+                            "--disable-update-check",
-+                        ]
++                        ] + recorder_args
 +
                          # append idx and process to processes list
                          self.processes.append([streamer[0], subprocess.Popen(args, 0)])

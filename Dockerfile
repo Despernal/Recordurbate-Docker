@@ -43,4 +43,8 @@ COPY config.json /app/configs/
 
 COPY youtube-dl.config /app/configs/
 
+# Default N_m3u8DL-RE flags. Editable on the host without a rebuild because
+# /app/configs is bind-mounted to the user's host configs directory.
+COPY configs/n_m3u8dl-re.config /app/configs/
+
 CMD ["/app/run.sh" ]
