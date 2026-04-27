@@ -44,7 +44,29 @@
  
          except Exception as e:
              self.logger.exception("Exception: call to is_online(..) failed.")
-@@ -127,13 +121,39 @@
+@@ -112,6 +106,21 @@
+                     if rec[1].poll() is not None:
+                         self.logger.info("Stopped recording {}".format(rec[0]))
+ 
++                        # Rename the in-progress recording (<basename>.part.ts)
++                        # to its final name (<basename>.ts) so Syncthing /
++                        # downstream watchers see a complete file instead of a
++                        # growing one. The .part.ts naming + .stignore *.part.ts
++                        # pattern keeps in-progress recordings out of sync.
++                        if len(rec) >= 4:
++                            try:
++                                if os.path.exists(rec[2]):
++                                    os.rename(rec[2], rec[3])
++                                    self.logger.info("Finalized {} -> {}".format(rec[2], rec[3]))
++                                else:
++                                    self.logger.warning("In-progress file missing on finalize: {}".format(rec[2]))
++                            except Exception as _re:
++                                self.logger.exception("Finalize rename failed: " + str(_re))
++
+                         # set streamer recording to false
+                         for loc, streamer in enumerate(self.config["streamers"]):
+                             if streamer[0] == rec[0]:
+@@ -127,15 +136,52 @@
                      if streamer[1]:
                          continue
  
@@ -59,6 +81,8 @@
 -                        # prep args (dl bin and config)
 -                        args = self.config["youtube-dl_cmd"].split(" ") + ["https://chaturbate.com/{}/".format(streamer[0]), "--config-location", self.config["youtube-dl_config"]] 
 -                        
+-                        # append idx and process to processes list
+-                        self.processes.append([streamer[0], subprocess.Popen(args, 0)])
 +                        # N_m3u8DL-RE downloads HLS segments natively (bypasses
 +                        # ffmpeg's HLS demuxer which is broken on CB's CMAF) and
 +                        # keeps a single output file across segment retries, so
@@ -69,7 +93,17 @@
 +                        # file so they can be tuned by editing a mounted file
 +                        # on the host without rebuilding the image.
 +                        out_dir = "videos/{}".format(streamer[0])
-+                        save_name = "{}-{}".format(streamer[0], time.strftime("%Y%m%d-%H%M%S"))
++                        _ts = time.strftime("%Y%m%d-%H%M%S")
++                        # In-progress recordings carry a .part suffix in the
++                        # save-name so the on-disk file is "<base>.part.ts"
++                        # while N_m3u8DL-RE writes; bot.py renames to
++                        # "<base>.ts" when the process exits cleanly. Pair
++                        # this with .stignore "*.part.ts" so Syncthing
++                        # doesn't sync the growing file.
++                        _final_basename = "{}-{}".format(streamer[0], _ts)
++                        _save_name = _final_basename + ".part"
++                        _recording_path = "{}/{}.ts".format(out_dir, _save_name)
++                        _final_path = "{}/{}.ts".format(out_dir, _final_basename)
 +                        recorder_config = self.config.get("recorder_config", "configs/n_m3u8dl-re.config")
 +                        recorder_args = []
 +                        try:
@@ -83,9 +117,12 @@
 +                        args = [
 +                            "N_m3u8DL-RE", hls_url,
 +                            "--save-dir", out_dir,
-+                            "--save-name", save_name,
++                            "--save-name", _save_name,
 +                        ] + recorder_args
 +
-                         # append idx and process to processes list
-                         self.processes.append([streamer[0], subprocess.Popen(args, 0)])
++                        # rec entry carries the in-progress and final paths so
++                        # the process-ended handler above can rename atomically.
++                        self.processes.append([streamer[0], subprocess.Popen(args, 0), _recording_path, _final_path])
  
+                         # set to recording
+                         self.config["streamers"][idx][1] = True
