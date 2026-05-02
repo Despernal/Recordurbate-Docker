@@ -3,8 +3,8 @@
 > **Heads up (April 2026):** Chaturbate switched to LL-HLS CMAF and ffmpeg 8.x
 > can't demux it cleanly. `:latest` was rolled back to the 2025-10-28 build
 > (digest `sha256:33ba571d…`), which is verified working. Long-term migration
-> to `N_m3u8DL-RE` is in progress on the [`n_m3u8dl-re` branch](../../tree/n_m3u8dl-re)
-> -- full writeup lives there.
+> to `N_m3u8DL-RE` started on the [`n_m3u8dl-re` branch](../../tree/n_m3u8dl-re).
+> that work is now merged into master.
 
 Based off the good work of https://github.com/oliverjrose99/Recordurbate
 
