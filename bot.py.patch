@@ -44,15 +44,13 @@
  
          except Exception as e:
              self.logger.exception("Exception: call to is_online(..) failed.")
-@@ -112,6 +106,21 @@
+@@ -112,6 +106,19 @@
                      if rec[1].poll() is not None:
                          self.logger.info("Stopped recording {}".format(rec[0]))
  
-+                        # Rename the in-progress recording (<basename>.part.ts)
-+                        # to its final name (<basename>.ts) so Syncthing /
-+                        # downstream watchers see a complete file instead of a
-+                        # growing one. The .part.ts naming + .stignore *.part.ts
-+                        # pattern keeps in-progress recordings out of sync.
++                        # rename the in-progress <basename>.part.ts to
++                        # <basename>.ts now that the process is done so
++                        # downstream watchers see a complete file.
 +                        if len(rec) >= 4:
 +                            try:
 +                                if os.path.exists(rec[2]):
@@ -94,12 +92,9 @@
 +                        # on the host without rebuilding the image.
 +                        out_dir = "videos/{}".format(streamer[0])
 +                        _ts = time.strftime("%Y%m%d-%H%M%S")
-+                        # In-progress recordings carry a .part suffix in the
-+                        # save-name so the on-disk file is "<base>.part.ts"
-+                        # while N_m3u8DL-RE writes; bot.py renames to
-+                        # "<base>.ts" when the process exits cleanly. Pair
-+                        # this with .stignore "*.part.ts" so Syncthing
-+                        # doesn't sync the growing file.
++                        # save-name carries a .part suffix while writing,
++                        # so the on-disk file is "<base>.part.ts". bot.py
++                        # renames to "<base>.ts" when the process exits cleanly.
 +                        _final_basename = "{}-{}".format(streamer[0], _ts)
 +                        _save_name = _final_basename + ".part"
 +                        _recording_path = "{}/{}.ts".format(out_dir, _save_name)
