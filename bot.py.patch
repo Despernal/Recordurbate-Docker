@@ -1,6 +1,6 @@
 --- bot.py.a
 +++ bot.py.b
-@@ -66,29 +66,21 @@
+@@ -66,29 +66,23 @@
                  self.config["streamers"].append([new_streamer, False])
  
      def is_online(self, username):
@@ -13,6 +13,12 @@
 -        # offset=(any non-negative number) can be included to obtain more results beyond the first 500.
 -        MAX_API_RESULTS = "500" 
 -        url = "https://chaturbate.com/api/public/affiliates/onlinerooms/?wm=DkfRj&client_ip=request_ip&limit=" + MAX_API_RESULTS
++        # Hits the same AJAX endpoint the chaturbate room player uses to fetch
++        # the live HLS URL. On success the response carries both the room
++        # status and the HLS source URL, so we return the URL (truthy) on
++        # online / public, and None otherwise. The caller in run() captures
++        # the URL and feeds it directly to the downloader, no second
++        # resolution step needed.
 +        url = "https://chaturbate.com/get_edge_hls_url_ajax/"
 +        headers = {"X-Requested-With": "XMLHttpRequest"}
 +        data = {"room_slug": username, "bandwidth": "high"}
@@ -28,15 +34,102 @@
 -            for result in results:
 -                if result["username"] == username and result["current_show"] in ["public"]:
 -                    return True
+-
+-            return False
 +            r = requests.post(url, headers=headers, data=data)
-+            if r.json()["room_status"] == "public":
-+                return True
- 
-             return False
-+
-+        except Exception as e:
-+            self.logger.exception(e)
++            j = r.json()
++            if j.get("room_status") == "public" and j.get("url"):
++                return j["url"]
 +            return None
  
          except Exception as e:
              self.logger.exception("Exception: call to is_online(..) failed.")
+@@ -112,6 +106,19 @@
+                     if rec[1].poll() is not None:
+                         self.logger.info("Stopped recording {}".format(rec[0]))
+ 
++                        # rename the in-progress <basename>.part.ts to
++                        # <basename>.ts now that the process is done so
++                        # downstream watchers see a complete file.
++                        if len(rec) >= 4:
++                            try:
++                                if os.path.exists(rec[2]):
++                                    os.rename(rec[2], rec[3])
++                                    self.logger.info("Finalized {} -> {}".format(rec[2], rec[3]))
++                                else:
++                                    self.logger.warning("In-progress file missing on finalize: {}".format(rec[2]))
++                            except Exception as _re:
++                                self.logger.exception("Finalize rename failed: " + str(_re))
++
+                         # set streamer recording to false
+                         for loc, streamer in enumerate(self.config["streamers"]):
+                             if streamer[0] == rec[0]:
+@@ -127,15 +136,61 @@
+                     if streamer[1]:
+                         continue
+ 
+-                    # check if online
+-                    if self.is_online(streamer[0]):
++                    # check if online; is_online returns the HLS URL (truthy) on
++                    # public / online, None on offline / error.
++                    hls_url = self.is_online(streamer[0])
++                    if hls_url:
+                         self.logger.info("Started to record {}".format(streamer[0]))
+ 
+-                        # prep args (dl bin and config)
+-                        args = self.config["youtube-dl_cmd"].split(" ") + ["https://chaturbate.com/{}/".format(streamer[0]), "--config-location", self.config["youtube-dl_config"]] 
+-                        
+-                        # append idx and process to processes list
+-                        self.processes.append([streamer[0], subprocess.Popen(args, 0)])
++                        # N_m3u8DL-RE downloads HLS segments natively (bypasses
++                        # ffmpeg's HLS demuxer which is broken on CB's CMAF) and
++                        # keeps a single output file across segment retries, so
++                        # transient reconnects don't fragment the recording.
++                        # ffmpeg is still used downstream as the muxer pipe via
++                        # --live-pipe-mux, but it never sees the HLS stream
++                        # directly. The recorder's CLI flags live in a config
++                        # file so they can be tuned by editing a mounted file
++                        # on the host without rebuilding the image.
++                        out_dir = "videos/{}".format(streamer[0])
++                        _ts = time.strftime("%Y%m%d-%H%M%S")
++                        # save-name carries a .part suffix while writing,
++                        # so the on-disk file is "<base>.part.ts". bot.py
++                        # renames to "<base>.ts" when the process exits cleanly.
++                        _final_basename = "{}-{}".format(streamer[0], _ts)
++                        _save_name = _final_basename + ".part"
++                        _recording_path = "{}/{}.ts".format(out_dir, _save_name)
++                        _final_path = "{}/{}.ts".format(out_dir, _final_basename)
++                        recorder_config = self.config.get("recorder_config", "configs/n_m3u8dl-re.config")
++                        recorder_args = []
++                        try:
++                            with open(recorder_config) as _rf:
++                                for _ln in _rf:
++                                    _ln = _ln.strip()
++                                    if _ln and not _ln.startswith("#"):
++                                        recorder_args.extend(_ln.split())
++                        except Exception as _e:
++                            self.logger.exception("Failed to read recorder config: " + str(_e))
++                        if not recorder_args:
++                            # fall back to baked-in defaults if the host
++                            # config wasnt mounted or got removed; matches
++                            # the shipped configs/n_m3u8dl-re.config
++                            recorder_args = [
++                                "--auto-select",
++                                "--live-real-time-merge",
++                                "--live-keep-segments=False",
++                                "--live-pipe-mux",
++                                "--no-log",
++                                "--disable-update-check",
++                            ]
++                        args = [
++                            "N_m3u8DL-RE", hls_url,
++                            "--save-dir", out_dir,
++                            "--save-name", _save_name,
++                        ] + recorder_args
++
++                        # rec entry carries the in-progress and final paths so
++                        # the process-ended handler above can rename atomically.
++                        self.processes.append([streamer[0], subprocess.Popen(args, 0), _recording_path, _final_path])
+ 
+                         # set to recording
+                         self.config["streamers"][idx][1] = True
