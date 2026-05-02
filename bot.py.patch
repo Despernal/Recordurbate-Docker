@@ -66,7 +66,7 @@
                          # set streamer recording to false
                          for loc, streamer in enumerate(self.config["streamers"]):
                              if streamer[0] == rec[0]:
-@@ -127,15 +136,52 @@
+@@ -127,15 +136,61 @@
                      if streamer[1]:
                          continue
  
@@ -114,6 +114,18 @@
 +                                        recorder_args.extend(_ln.split())
 +                        except Exception as _e:
 +                            self.logger.exception("Failed to read recorder config: " + str(_e))
++                        if not recorder_args:
++                            # fall back to baked-in defaults if the host
++                            # config wasnt mounted or got removed; matches
++                            # the shipped configs/n_m3u8dl-re.config
++                            recorder_args = [
++                                "--auto-select",
++                                "--live-real-time-merge",
++                                "--live-keep-segments=False",
++                                "--live-pipe-mux",
++                                "--no-log",
++                                "--disable-update-check",
++                            ]
 +                        args = [
 +                            "N_m3u8DL-RE", hls_url,
 +                            "--save-dir", out_dir,
