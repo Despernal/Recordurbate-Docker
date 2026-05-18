@@ -21,7 +21,7 @@
  class Bot:
  
      error = False
-@@ -66,29 +80,23 @@
+@@ -66,36 +80,58 @@
                  self.config["streamers"].append([new_streamer, False])
  
      def is_online(self, username):
@@ -65,7 +65,42 @@
  
          except Exception as e:
              self.logger.exception("Exception: call to is_online(..) failed.")
-@@ -108,10 +116,57 @@
+             self.logger.exception(e)
+             return None
+ 
++    def _reap_startup_orphans(self):
++        """Container just started: any pre-existing .part.ts is by
++        definition an orphan from a prior abrupt shutdown (host
++        crash, docker kill, OOM, pre-shutdown-finalize era).
++        N_m3u8DL-RE PIDs reset on container restart so nothing
++        on disk could possibly still be holding any of these files
++        open. Rename to .ts so they're not stuck in half-named
++        state forever and Syncthing can pick them up.
++        """
++        try:
++            for root, _, files in os.walk("videos"):
++                for f in files:
++                    if not f.endswith(".part.ts"):
++                        continue
++                    src = os.path.join(root, f)
++                    dst = os.path.join(root, f[:-len(".part.ts")] + ".ts")
++                    if os.path.exists(dst):
++                        # would clobber an already-finalized file with
++                        # the same basename; very unlikely but skip
++                        self.logger.warning("Orphan skip (target exists): {}".format(src))
++                        continue
++                    os.rename(src, dst)
++                    self.logger.info("Startup-orphan finalized: {} -> {}".format(src, dst))
++        except Exception as _e:
++            self.logger.exception("Orphan reap failed: " + str(_e))
++
+     def run(self):
++        # clean up .part.ts files left behind by a prior abrupt exit
++        self._reap_startup_orphans()
+         while self.running:
+             
+             # debug
+@@ -108,10 +144,57 @@
                  # check current processes
                  for idx, rec in enumerate(self.processes):
  
@@ -123,7 +158,7 @@
                          # set streamer recording to false
                          for loc, streamer in enumerate(self.config["streamers"]):
                              if streamer[0] == rec[0]:
-@@ -127,15 +182,67 @@
+@@ -127,15 +210,67 @@
                      if streamer[1]:
                          continue
  
@@ -198,3 +233,20 @@
  
                          # set to recording
                          self.config["streamers"][idx][1] = True
+@@ -160,5 +295,15 @@
+             # send sigint, wait for end
+             rec[1].send_signal(signal.SIGINT)
+             rec[1].wait()
+-        
++            # finalize same as the poll-loop path so a container restart
++            # (docker restart, salt redeploy, watchtower) doesn't leave
++            # orphan .part.ts files for the next bot.py to inherit.
++            if len(rec) >= 4:
++                try:
++                    if os.path.exists(rec[2]):
++                        os.rename(rec[2], rec[3])
++                        self.logger.info("Finalized on shutdown: {} -> {}".format(rec[2], rec[3]))
++                except Exception as _re:
++                    self.logger.exception("Shutdown finalize failed: " + str(_re))
++
+         self.logger.info("Successfully stopped")
