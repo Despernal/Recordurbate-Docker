@@ -1,3 +1,8 @@
 config.json.old
 docker-compose.yml.mine
 start.mine
+
+# Local-only tooling: probe scripts, scan results, anything that would
+# expose performer slugs or host details if pushed to the public repo.
+tools-local/
+CMAF-FFMPEG-BUG.md
