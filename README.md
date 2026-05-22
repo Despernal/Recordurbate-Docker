@@ -2,7 +2,7 @@
 
 > **Heads up (April 2026):** Chaturbate switched to LL-HLS CMAF and ffmpeg 8.x
 > can't demux it cleanly. `:latest` was rolled back to the 2025-10-28 build
-> (digest `sha256:33ba571d…`), which is verified working. Long-term migration
+> (digest `sha256:33ba571d...`), which is verified working. Long-term migration
 > to `N_m3u8DL-RE` started on the [`n_m3u8dl-re` branch](../../tree/n_m3u8dl-re).
 > that work is now merged into master.
 
@@ -82,6 +82,36 @@ If you hit audio-sync trouble, drop `--live-pipe-mux` from the config
 and set environment variable `N_M3U8DL_NO_FFMPEG_PIPE=1` on the
 container. That switches to the separate-files-then-merge mode that
 ctbcap uses, trades a small post-merge delay for tighter A/V sync.
+
+## Hang watchdog
+
+N_m3u8DL-RE has a known thing where it sometimes doesnt notice the
+stream ended and just keeps polling forever ([nilaoda/N_m3u8DL-RE#594,
+#409, #443](https://github.com/nilaoda/N_m3u8DL-RE/issues/594)).
+Chaturbate's HLS doesnt reliably emit `#EXT-X-ENDLIST` either, so the
+recorder hangs until something kills it. The community workaround is
+"Ctrl+C and remux." This image bakes that in: per-recorder watchdog
+checks the output file's mtime every tick, if it hasnt grown in 5
+minutes (`HANG_SIGINT_AFTER`) the supervisor sends SIGINT, then SIGTERM
+30s later (`HANG_SIGTERM_AFTER`) if the process is still alive. The
+existing exit-detection branch then handles the `.part.ts -> .ts`
+rename naturally.
+
+Two paranoia paths for restarts too: on graceful shutdown (SIGTERM
+from `docker restart` / salt redeploy / watchtower) the supervisor
+SIGINTs each child, waits, and runs the same rename. On startup, a
+reaper scans the videos dir for any leftover `.part.ts` files (host
+crash, abrupt kill, pre-fix backlog) and renames them. Idempotent.
+
+Healthy recordings stay untouched: every chunklist refresh that
+produces a new segment bumps the file mtime, the watchdog resets. The
+watchdog only fires when the file is demonstrably not growing.
+
+This came out of 2026-05-18: 14 N_m3u8DL-RE processes running on the
+prod chat container with output files frozen 3.5 to 10.9 days,
+container at 314% CPU, ~76GB sitting in `.part.ts` files that never
+got finalized. With the watchdog + shutdown finalize + startup reaper
+all three failure modes are now covered.
 
 ## Why this approach (history)
 
