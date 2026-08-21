@@ -7,7 +7,7 @@ name: Docker
 
 on:
   push:
-    branches: [ "master", "n_m3u8dl-re", "hang-watchdog" ]
+    branches: [ "master", "n_m3u8dl-re", "hang-watchdog", "zero-byte-check" ]
     # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
     paths-ignore:
