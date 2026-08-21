@@ -100,7 +100,7 @@
          while self.running:
              
              # debug
-@@ -108,10 +144,57 @@
+@@ -108,10 +144,71 @@
                  # check current processes
                  for idx, rec in enumerate(self.processes):
  
@@ -145,20 +145,34 @@
 +                        # rename the in-progress <basename>.part.ts to
 +                        # <basename>.ts now that the process is done so
 +                        # downstream watchers see a complete file.
++                        # a recording can also finish having produced nothing at all. if the
++                        # upstream fetch never succeeds (2026-08-20: the VPN relay exit IP was
++                        # refused by chaturbate's video CDN while the main site still answered)
++                        # N_m3u8DL-RE exits without ever creating the file, or leaves a 0-byte
++                        # one. the missing case was only a warning and the 0-byte case got
++                        # renamed and logged as "Finalized", same as a good recording. the hang
++                        # watchdog above cannot see either, since it stats a .part.ts that never
++                        # grows or never exists. one greppable token covers both.
 +                        if len(rec) >= 4:
 +                            try:
 +                                if os.path.exists(rec[2]):
++                                    size = os.path.getsize(rec[2])
++                                    # rename either way, a leftover 0-byte .part.ts
++                                    # just hands the startup reaper the same problem
 +                                    os.rename(rec[2], rec[3])
-+                                    self.logger.info("Finalized {} -> {}".format(rec[2], rec[3]))
++                                    if size == 0:
++                                        self.logger.error("RECORDING_PRODUCED_NOTHING {} 0 bytes on finalize: {}".format(rec[0], rec[3]))
++                                    else:
++                                        self.logger.info("Finalized {} -> {}".format(rec[2], rec[3]))
 +                                else:
-+                                    self.logger.warning("In-progress file missing on finalize: {}".format(rec[2]))
++                                    self.logger.error("RECORDING_PRODUCED_NOTHING {} in-progress file missing on finalize: {}".format(rec[0], rec[2]))
 +                            except Exception as _re:
 +                                self.logger.exception("Finalize rename failed: " + str(_re))
 +
                          # set streamer recording to false
                          for loc, streamer in enumerate(self.config["streamers"]):
                              if streamer[0] == rec[0]:
-@@ -127,15 +210,67 @@
+@@ -127,15 +224,67 @@
                      if streamer[1]:
                          continue
  
@@ -233,7 +247,7 @@
  
                          # set to recording
                          self.config["streamers"][idx][1] = True
-@@ -160,5 +295,15 @@
+@@ -160,5 +309,15 @@
              # send sigint, wait for end
              rec[1].send_signal(signal.SIGINT)
              rec[1].wait()
