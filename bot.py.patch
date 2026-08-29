@@ -1,6 +1,6 @@
 --- bot.py.a
 +++ bot.py.b
-@@ -7,6 +7,20 @@
+@@ -7,6 +7,31 @@
  from config import load_config
  
  
@@ -17,11 +17,22 @@
 +HANG_SIGINT_AFTER = 300  # 5 min of no file growth -> hang detected
 +HANG_SIGTERM_AFTER = 30  # 30s for graceful exit before escalating
 +
++# is_online() may reach chaturbate through a VPN network namespace. requests
++# has NO default timeout, so a half-open tunnel (SYN sent, nothing back) wedges
++# the single-threaded poll loop FOREVER -- every other streamer stops being
++# checked and no new recording ever starts. The hang watchdog above cannot see
++# this: it keys on .part.ts mtime, and this stalls BEFORE any file exists.
++# Measured steady state through the tunnel is ~0.36s (n=6, 0.347-0.372), so
++# these are 30-55x headroom -- far too generous to false-trip on a slow
++# response, tight enough that a dead tunnel costs one cycle, not the process.
++ONLINE_CONNECT_TIMEOUT = 10
++ONLINE_READ_TIMEOUT = 20
++
 +
  class Bot:
  
      error = False
-@@ -66,36 +80,58 @@
+@@ -66,36 +91,59 @@
                  self.config["streamers"].append([new_streamer, False])
  
      def is_online(self, username):
@@ -57,7 +68,8 @@
 -                    return True
 -
 -            return False
-+            r = requests.post(url, headers=headers, data=data)
++            r = requests.post(url, headers=headers, data=data,
++                              timeout=(ONLINE_CONNECT_TIMEOUT, ONLINE_READ_TIMEOUT))
 +            j = r.json()
 +            if j.get("room_status") == "public" and j.get("url"):
 +                return j["url"]
@@ -100,7 +112,7 @@
          while self.running:
              
              # debug
-@@ -108,10 +144,71 @@
+@@ -108,10 +156,71 @@
                  # check current processes
                  for idx, rec in enumerate(self.processes):
  
@@ -172,7 +184,7 @@
                          # set streamer recording to false
                          for loc, streamer in enumerate(self.config["streamers"]):
                              if streamer[0] == rec[0]:
-@@ -127,15 +224,67 @@
+@@ -127,15 +236,67 @@
                      if streamer[1]:
                          continue
  
@@ -247,7 +259,7 @@
  
                          # set to recording
                          self.config["streamers"][idx][1] = True
-@@ -160,5 +309,15 @@
+@@ -160,5 +321,15 @@
              # send sigint, wait for end
              rec[1].send_signal(signal.SIGINT)
              rec[1].wait()
