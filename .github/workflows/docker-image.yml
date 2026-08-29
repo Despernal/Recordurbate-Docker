@@ -2,7 +2,7 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "master", "n_m3u8dl-re", "hang-watchdog", "zero-byte-check" ]
+    branches: [ "master", "n_m3u8dl-re", "hang-watchdog", "zero-byte-check", "is-online-timeout" ]
     paths-ignore:
       - '**/*.md'
   pull_request:
