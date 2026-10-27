@@ -6,3 +6,6 @@ start.mine
 # expose performer slugs or host details if pushed to the public repo.
 tools-local/
 CMAF-FFMPEG-BUG.md
+
+# python test runs
+__pycache__/

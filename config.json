@@ -5,6 +5,7 @@
     "rate_limit": true,
     "rate_limit_time": 5,
     "default_export_location": "./list.txt",
+    "pipe_mux_options": "-copyts -avoid_negative_ts make_zero",
     "streamers": [
 	    "auddicted"
     ]

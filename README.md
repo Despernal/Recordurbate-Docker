@@ -78,10 +78,27 @@ file is missing or empty.
 Edit on the host (no rebuild needed if you bind-mount `/app/configs`)
 and restart the container to apply.
 
-If you hit audio-sync trouble, drop `--live-pipe-mux` from the config
-and set environment variable `N_M3U8DL_NO_FFMPEG_PIPE=1` on the
-container. That switches to the separate-files-then-merge mode that
-ctbcap uses, trades a small post-merge delay for tighter A/V sync.
+## Lip sync
+
+`--live-pipe-mux` hands the audio and video tracks to ffmpeg without
+`-copyts`, so ffmpeg starts each track at zero on its own and the real gap
+between them gets thrown away. You end up with a lip-sync offset that stays
+the same for the whole file but changes from one recording to the next,
+which is why some recordings looked fine and others didnt.
+
+The recorder now starts N_m3u8DL-RE with `--ffmpeg-binary-path
+/app/ffmpeg_av_sync.py`. That little wrapper looks for the pipe-mux call and
+adds `-copyts -avoid_negative_ts make_zero` right before the output, so ffmpeg
+keeps the original timestamps. Every other ffmpeg call goes through untouched.
+It lives in `config.json` as `pipe_mux_options`; set it to `""` to get the old
+behaviour back. Dont add `-start_at_zero`, it re-zeroes each track separately
+and brings the offset right back (the wrapper strips it).
+
+Why not `RE_LIVE_PIPE_OPTIONS`? Setting that env var also makes N_m3u8DL-RE
+put `-re` on the video input, and `-re` on a live input is asking for trouble.
+
+Heads up: an older version of this README said to set
+`N_M3U8DL_NO_FFMPEG_PIPE=1`. Nothing in this image reads that variable.
 
 ## Hang watchdog
 

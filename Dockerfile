@@ -37,6 +37,10 @@ COPY bot.py.patch /app
 
 RUN patch /app/bot.py  < /app/bot.py.patch
 
+# A/V alignment for pipe-mux recordings (see recorder_env.py); tests gate the build.
+COPY recorder_env.py ffmpeg_av_sync.py test_recorder_env.py /app/
+RUN chmod +x /app/ffmpeg_av_sync.py && cd /app && python3 -m unittest -v test_recorder_env
+
 RUN chmod +x run.sh
 
 COPY config.json /app/configs/
